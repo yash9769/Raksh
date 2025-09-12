@@ -6,6 +6,8 @@ import { StudentDashboard } from './components/student-dashboard';
 import { LearningModule } from './components/learning-module';
 import { EmergencyMode } from './components/emergency-mode';
 import { AdminDashboard } from './components/admin-dashboard';
+import { FacultyDashboard } from './components/faculty-dashboard';
+import { AIChatbot } from './components/ai-chatbot';
 
 function AppContent() {
   const { user, profile, loading, updateProfile } = useAuth();
@@ -102,12 +104,19 @@ function AppContent() {
   };
 
   // Render current view based on role and navigation
-  if (profile?.role === 'admin' || profile?.role === 'faculty') {
+  if (profile?.role === 'admin') {
     switch (currentView) {
       case 'emergency':
         return <EmergencyMode onExit={handleExitEmergency} />;
       default:
         return <AdminDashboard onBack={handleBackToApp} />;
+    }
+  } else if (profile?.role === 'faculty') {
+    switch (currentView) {
+      case 'emergency':
+        return <EmergencyMode onExit={handleExitEmergency} />;
+      default:
+        return <FacultyDashboard onBack={handleBackToApp} />;
     }
   } else {
     // Student interface
@@ -137,6 +146,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <AIChatbot />
     </AuthProvider>
   );
 }

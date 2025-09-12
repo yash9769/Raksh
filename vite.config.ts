@@ -53,7 +53,7 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
-    port: 3001,
+    port: 5007,
     open: true,
   },
 });

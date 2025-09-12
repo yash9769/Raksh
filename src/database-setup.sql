@@ -192,27 +192,58 @@ CREATE POLICY "Admins can view all safety status" ON public.safety_status
 
 -- Insert sample learning module data
 INSERT INTO public.learning_modules (id, title, description, video_url, duration, xp_reward, category) VALUES
-('earthquake-safety-basics', 'Earthquake Safety Basics', 'Learn fundamental earthquake safety techniques including Drop, Cover, and Hold On procedures.', 'https://www.youtube.com/embed/BLEPakj1YTY?rel=0&modestbranding=1&controls=1', '15 min', 120, 'earthquake'),
-('fire-safety-fundamentals', 'Fire Safety Fundamentals', 'Master fire prevention, detection, and evacuation procedures for various scenarios.', '', '20 min', 150, 'fire'),
-('flood-response-training', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', '', '18 min', 180, 'flood'),
-('emergency-communication', 'Emergency Communication', 'Essential communication strategies during crisis situations.', '', '12 min', 120, 'communication')
+('earthquake-safety-basics', 'Earthquake Safety Basics', 'Learn fundamental earthquake safety techniques including Drop, Cover, and Hold On procedures.', 'https://www.youtube.com/embed/BLEPakj1YTY?rel=0&modestbranding=1&controls=1', '15 min', 200, 'earthquake'),
+('fire-safety-basics', 'Fire Safety Fundamentals', 'Master fire prevention, detection, and evacuation procedures for various scenarios.', 'https://www.youtube.com/embed/Xgc90CoJbDI?rel=0&modestbranding=1&controls=1', '20 min', 150, 'fire'),
+('flood-response-basics', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', 'https://www.youtube.com/embed/1pGj5N_sCr8?rel=0&modestbranding=1&controls=1', '18 min', 180, 'flood'),
+('emergency-communication-basics', 'Emergency Communication', 'Essential communication strategies during crisis situations.', 'https://www.youtube.com/embed/QE4ecWlZJ-o?rel=0&modestbranding=1&controls=1', '12 min', 120, 'communication')
 ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
     description = EXCLUDED.description,
     video_url = EXCLUDED.video_url,
     updated_at = timezone('utc'::text, now());
 
--- Insert sample questions for earthquake module
+-- Insert sample questions for all modules
 INSERT INTO public.module_questions (module_id, question, options, correct_answer, explanation, order_index) VALUES
-('earthquake-safety-basics', 'What should you do immediately when you feel an earthquake?', 
- '["Run outside as fast as possible", "Drop, Cover, and Hold On", "Stand in a doorway", "Go to the top floor"]', 
+-- Earthquake questions
+('earthquake-safety-basics', 'What should you do immediately when you feel an earthquake?',
+ '["Run outside as fast as possible", "Drop, Cover, and Hold On", "Stand in a doorway", "Go to the top floor"]',
  1, 'Drop, Cover, and Hold On is the recommended action. Drop to hands and knees, take cover under a desk or table, and hold on until shaking stops.', 1),
-('earthquake-safety-basics', 'Which location is safest during an earthquake?', 
- '["Under a heavy desk or table", "In a doorway", "Next to a window", "On an upper floor"]', 
+('earthquake-safety-basics', 'Which location is safest during an earthquake?',
+ '["Under a heavy desk or table", "In a doorway", "Next to a window", "On an upper floor"]',
  0, 'Under a heavy desk or table provides the best protection from falling objects, which cause most earthquake injuries.', 2),
-('earthquake-safety-basics', 'After an earthquake stops, what should you do first?', 
- '["Check for injuries and hazards", "Call your family immediately", "Go outside to see damage", "Turn on the TV for news"]', 
- 0, 'Check yourself and others for injuries first, then assess for hazards like gas leaks, electrical damage, or structural damage.', 3)
+('earthquake-safety-basics', 'After an earthquake stops, what should you do first?',
+ '["Check for injuries and hazards", "Call your family immediately", "Go outside to see damage", "Turn on the TV for news"]',
+ 0, 'Check yourself and others for injuries first, then assess for hazards like gas leaks, electrical damage, or structural damage.', 3),
+-- Fire safety questions
+('fire-safety-basics', 'What does the acronym PASS stand for in fire extinguisher use?',
+ '["Pull, Aim, Squeeze, Sweep", "Point, Activate, Stop, Start", "Push, Apply, Spray, Stop", "Prepare, Align, Spray, Secure"]',
+ 0, 'PASS stands for Pull the pin, Aim at the base of the fire, Squeeze the handle, and Sweep from side to side.', 1),
+('fire-safety-basics', 'What should you do if your clothes catch fire?',
+ '["Run to get help", "Stop, Drop, and Roll", "Try to put it out with your hands", "Jump into water"]',
+ 1, 'Stop, Drop, and Roll helps smother the flames. Running will only make the fire worse by feeding it oxygen.', 2),
+('fire-safety-basics', 'What is the most important thing to do in a fire emergency?',
+ '["Save valuable items", "Get out and stay out", "Try to fight the fire", "Open windows for ventilation"]',
+ 1, 'The most important thing is to get out safely and stay out. Property can be replaced, but lives cannot.', 3),
+-- Flood response questions
+('flood-response-basics', 'How deep does moving water need to be to knock you down?',
+ '["2 feet", "1 foot", "6 inches", "3 feet"]',
+ 2, 'Just 6 inches of moving water can knock you down. Water is much more powerful than people realize.', 1),
+('flood-response-basics', 'What should you do if you''re driving and encounter flood water?',
+ '["Drive through quickly", "Turn around, don''t drown", "Wait in your car", "Drive slowly through it"]',
+ 1, 'Turn around, don''t drown! Just 12 inches of rushing water can carry away a vehicle. Never drive through flood water.', 2),
+('flood-response-basics', 'If trapped in a flooded building, where should you go?',
+ '["Basement for safety", "Ground floor", "Highest floor available", "Outside immediately"]',
+ 2, 'Go to the highest floor available and wait for rescue. Avoid the basement where you can become trapped.', 3),
+-- Emergency communication questions
+('emergency-communication-basics', 'What information should you provide first when calling emergency services?',
+ '["Your name", "What happened", "Your location", "How many people are involved"]',
+ 2, 'Always give your location first. This ensures help can be sent even if the call gets disconnected.', 1),
+('emergency-communication-basics', 'During an emergency, what type of communication should you prioritize?',
+ '["Social media posts", "Text messages to family", "Email updates", "Phone calls to friends"]',
+ 1, 'Text messages use less bandwidth and are more likely to get through when phone lines are overloaded.', 2),
+('emergency-communication-basics', 'What should you include in your family emergency communication plan?',
+ '["Only local contact numbers", "An out-of-state contact person", "Just immediate family contacts", "Work contacts only"]',
+ 1, 'An out-of-state contact can help coordinate family communication when local lines are down.', 3)
 ON CONFLICT DO NOTHING;
 
 -- Create function to automatically create user profile on signup

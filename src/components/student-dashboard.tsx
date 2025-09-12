@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 import { DebugInfo } from "./debug-info";
 import { DatabaseSetupReminder } from "./database-setup-reminder";
-import { AIChatbot } from "./ai-chatbot";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -83,9 +83,51 @@ export function StudentDashboard({
   }, [onEmergencyMode]);
 
   useEffect(() => {
-    // Example: replace with real logic from DB/user progress
-    const storedStreak = localStorage.getItem("streakDays");
-    setStreakDays(storedStreak ? parseInt(storedStreak) : 0);
+    const fetchAndUpdateStreak = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("streak_days, last_active_date")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching streak:", error);
+        return;
+      }
+
+      const today = new Date().toDateString();
+      let updatedStreak = 1;
+
+      if (data?.last_active_date) {
+        const lastDate = new Date(data.last_active_date).toDateString();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (lastDate === today) {
+          updatedStreak = data.streak_days; // already updated today
+        } else if (lastDate === yesterday.toDateString()) {
+          updatedStreak = (data.streak_days || 0) + 1; // continue streak
+        } else {
+          updatedStreak = 1; // reset
+        }
+      }
+
+      setStreakDays(updatedStreak);
+
+      // Save back to DB
+      await supabase
+        .from("user_profiles")
+        .update({
+          streak_days: updatedStreak,
+          last_active_date: new Date().toISOString().split("T")[0],
+        })
+        .eq("id", user.id);
+    };
+
+    fetchAndUpdateStreak();
   }, []);
 
   // Dynamic next mission based on completed modules
@@ -307,13 +349,12 @@ export function StudentDashboard({
               </Badge>
               <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-sm">
                 <Flame className="w-4 h-4" />
-                <span className="font-medium">{profile?.streak_days || 0} day streak</span>
+                <span className="font-medium">{streakDays} day streak</span>
               </div>
             </div>
           </div>
         </div>
         <div className="flex gap-3">
-          <AIChatbot />
           <Button
             variant="outline"
             size="sm"
@@ -323,7 +364,7 @@ export function StudentDashboard({
             <Database className="w-4 h-4 mr-2" />
             Debug
           </Button>
-          <Button variant="outline" size="sm" onClick={signOut} className="hover:bg-gray-100">
+          <Button variant="outline" size="sm" onClick={() => signOut()} className="hover:bg-gray-100">
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
           </Button>
@@ -385,12 +426,12 @@ export function StudentDashboard({
                 {getPreparednessScore()}%
               </div>
               <div className="text-sm text-blue-100">
-                {getPreparednessScore() < 30 
-                  ? "Next Badge at 30%" 
-                  : getPreparednessScore() < 60
-                  ? "Next Badge at 60%"
-                  : getPreparednessScore() < 90
-                  ? "Next Badge at 90%"
+                {getPreparednessScore() < 25
+                  ? "Next Badge at 25%"
+                  : getPreparednessScore() < 50
+                  ? "Next Badge at 50%"
+                  : getPreparednessScore() < 75
+                  ? "Next Badge at 75%"
                   : "Expert Level! 🏆"}
               </div>
             </div>
@@ -405,27 +446,15 @@ export function StudentDashboard({
             {/* Milestone markers */}
             <div className="flex justify-between text-xs text-white/70 mt-1">
               <span>0%</span>
-              <span>30%</span>
-              <span>60%</span>
-              <span>90%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
               <span>100%</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>🔥 Streak</CardTitle>
-          <CardDescription>Your learning consistency</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-lg font-bold">
-            <span className="text-orange-500">🔥</span>
-            {streakDays} day streak
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Enhanced Next Mission */}
       <Card className="mb-6 border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-lg transition-all duration-300 relative overflow-hidden">

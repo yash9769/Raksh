@@ -3,7 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = 'https://xidfvigvnqfezyuhwipf.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpZGZ2aWd2bnFmZXp5dWh3aXBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1NjczMTUsImV4cCI6MjA3MzE0MzMxNX0.zuoLXXaf0y0zuWNVnMxy6LFdCQpgRiGhDKkFlK8kuEY'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
+})
 
 // Database Types
 export interface UserProfile {
@@ -85,7 +90,7 @@ export interface SafetyStatus {
 }
 
 // Auth helpers
-export const signUp = async (email: string, password: string, metadata: { full_name: string, role: string }) => {
+export const signUp = async (email: string, password: string, metadata: { full_name: string, role: 'student' | 'faculty' | 'admin' }) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -156,38 +161,24 @@ export const getLearningModules = async () => {
   return { data, error }
 }
 
-// Helper function to add timeout to any promise
-const withTimeout = (promise: Promise<any>, timeoutMs: number = 5000): Promise<any> => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
-    )
-  ])
-}
+
 
 export const updateLearningProgress = async (userId: string, moduleId: string, score: number, earnedXP: number) => {
   try {
-    // Check if table exists first with a simple timeout
-    const tableCheck = await withTimeout(
-      supabase.from('user_progress').select('id').limit(1),
-      2000
-    )
-    
-    if (tableCheck.error) {
-      throw new Error(`Database not set up properly: ${tableCheck.error.message}`)
+    // Check if table exists first
+    const { error: tableError } = await supabase.from('user_progress').select('id').limit(1)
+
+    if (tableError) {
+      throw new Error(`Database not set up properly: ${tableError.message}`)
     }
 
-    // Get existing progress with timeout
-    const { data: existingProgress } = await withTimeout(
-      supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('module_id', moduleId)
-        .single(),
-      3000
-    )
+    // Get existing progress
+    const { data: existingProgress } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('module_id', moduleId)
+      .single()
 
     const updateData = {
       score: existingProgress ? Math.max(existingProgress.score, score) : score,
@@ -198,16 +189,13 @@ export const updateLearningProgress = async (userId: string, moduleId: string, s
 
     if (existingProgress) {
       // Update existing progress
-      const { data, error } = await withTimeout(
-        supabase
-          .from('user_progress')
-          .update(updateData)
-          .eq('user_id', userId)
-          .eq('module_id', moduleId)
-          .select()
-          .single(),
-        3000
-      )
+      const { data, error } = await supabase
+        .from('user_progress')
+        .update(updateData)
+        .eq('user_id', userId)
+        .eq('module_id', moduleId)
+        .select()
+        .single()
       return { data, error }
     } else {
       // Create new progress record
@@ -216,15 +204,12 @@ export const updateLearningProgress = async (userId: string, moduleId: string, s
         module_id: moduleId,
         ...updateData
       }
-      
-      const { data, error } = await withTimeout(
-        supabase
-          .from('user_progress')
-          .insert([insertData])
-          .select()
-          .single(),
-        3000
-      )
+
+      const { data, error } = await supabase
+        .from('user_progress')
+        .insert([insertData])
+        .select()
+        .single()
       return { data, error }
     }
   } catch (error) {
@@ -235,29 +220,21 @@ export const updateLearningProgress = async (userId: string, moduleId: string, s
 
 export const awardBadgeAndXP = async (userId: string, xpGained: number, badgeEarned?: string) => {
   try {
-    const { data: profile, error: profileError } = await withTimeout(
-      getUserProfile(userId),
-      3000
-    )
-    
+    const { data: profile, error: profileError } = await getUserProfile(userId)
+
     if (!profile || profileError) {
       return { error: profileError || 'Profile not found' }
     }
 
     const newXP = (profile.xp || 0) + xpGained
-    const newLevel = Math.floor(newXP / 500) + 1 // Level up every 500 XP
-    const newBadges = badgeEarned && !profile.badges?.includes(badgeEarned) 
+    const newBadges = badgeEarned && !profile.badges?.includes(badgeEarned)
       ? [...(profile.badges || []), badgeEarned]
       : profile.badges || []
 
-    const { data, error } = await withTimeout(
-      updateUserProfile(userId, {
-        xp: newXP,
-        level: newLevel,
-        badges: newBadges
-      }),
-      3000
-    )
+    const { data, error } = await updateUserProfile(userId, {
+      xp: newXP,
+      badges: newBadges
+    })
 
     return { data, error }
   } catch (error) {
@@ -312,12 +289,10 @@ export const updateSafetyStatus = async (status: Partial<SafetyStatus>) => {
       user_id: status.user_id,
       alert_id: status.alert_id,
       // Map status field correctly
-      status: status.status === 'help_needed' ? 'need_help' : status.status,
+      status: status.status,
       location: status.location,
       // Map coordinates to JSONB format
-      coordinates: status.latitude && status.longitude 
-        ? { lat: status.latitude, lng: status.longitude }
-        : null,
+      coordinates: status.coordinates,
       updated_at: new Date().toISOString()
     }
 
@@ -326,7 +301,7 @@ export const updateSafetyStatus = async (status: Partial<SafetyStatus>) => {
       .upsert([dbStatus])
       .select()
       .single()
-    
+
     return { data, error }
   } catch (error) {
     console.error('Safety status update error:', error)
@@ -382,26 +357,23 @@ export const subscribeToSafetyStatus = (callback: (status: SafetyStatus) => void
 export const updateEmergencyContacts = async (userId: string, contacts: EmergencyContact[]) => {
   try {
     // Check if emergency_contacts column exists first
-    const columnCheck = await supabase
+    const { error: columnError } = await supabase
       .from('user_profiles')
       .select('emergency_contacts')
       .limit(1)
-    
-    if (columnCheck.error?.code === 'PGRST204') {
+
+    if (columnError?.code === 'PGRST204') {
       console.error('❌ Database schema error: emergency_contacts column not found!')
-      return { 
-        data: null, 
-        error: { 
+      return {
+        data: null,
+        error: {
           message: 'Database setup incomplete. Please run the migration SQL in Supabase.',
           code: 'SCHEMA_ERROR'
         }
       }
     }
 
-    const { data, error } = await withTimeout(
-      updateUserProfile(userId, { emergency_contacts: contacts }),
-      3000
-    )
+    const { data, error } = await updateUserProfile(userId, { emergency_contacts: contacts })
     return { data, error }
   } catch (error) {
     console.error('Emergency contacts update failed:', error)
@@ -412,21 +384,18 @@ export const updateEmergencyContacts = async (userId: string, contacts: Emergenc
 export const getEmergencyContacts = async (userId: string): Promise<EmergencyContact[]> => {
   try {
     console.log('🔍 Getting emergency contacts for user:', userId)
-    const { data: profile, error } = await withTimeout(
-      getUserProfile(userId),
-      3000
-    )
-    
+    const { data: profile, error } = await getUserProfile(userId)
+
     if (error) {
       console.error('❌ Error getting user profile:', error)
       return []
     }
-    
+
     if (!profile) {
       console.log('⚠️ No profile found for user:', userId)
       return []
     }
-    
+
     const contacts = profile.emergency_contacts || []
     console.log('✅ Retrieved emergency contacts:', contacts)
     return contacts

@@ -16,7 +16,7 @@ interface AuthContextType {
   moduleProgress: ModuleProgress[]
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string, metadata: { full_name: string, role: string }) => Promise<{ error: any }>
+  signUp: (email: string, password: string, metadata: { full_name: string, role: 'student' | 'faculty' | 'admin' }) => Promise<{ error: any }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>
   refreshProgress: () => Promise<void>
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: userId,
             email: user.data.user.email!,
             full_name: user.data.user.user_metadata?.full_name || '',
-            role: user.data.user.user_metadata?.role || 'student',
+            role: (user.data.user.user_metadata?.role as 'student' | 'faculty' | 'admin') || 'student',
             preparedness_score: 0,
             level: 1,
             xp: 0,
@@ -137,16 +137,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       
       setModuleProgress(moduleProgressArray)
-      
-      // Calculate and update preparedness score
+
+      // Update level based on completed modules
       const completedModules = moduleProgressArray.filter(m => m.completed).length
-      const totalModules = moduleProgressArray.length
-      const newPreparednessScore = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0
-      
-      // Update profile with new preparedness score if it has changed
-      if (profile && profile.preparedness_score !== newPreparednessScore) {
-        await updateProfile({ preparedness_score: newPreparednessScore })
+      const newLevel = completedModules + 1
+      if (profile && profile.level !== newLevel) {
+        await updateProfile({ level: newLevel })
       }
+
+      
+
       
     } catch (error) {
       console.error('Error loading user progress:', error)
@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error }
   }
 
-  const signUp = async (email: string, password: string, metadata: { full_name: string, role: string }) => {
+  const signUp = async (email: string, password: string, metadata: { full_name: string, role: 'student' | 'faculty' | 'admin' }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
