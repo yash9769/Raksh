@@ -6,6 +6,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Send, Bot, User, X } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -13,14 +14,18 @@ interface Message {
 }
 
 export function AIChatbot() {
-  const { user } = useAuth();
+   const { user } = useAuth();
 
-  // Only show chatbot for authenticated users
-  if (!user) {
-    return null;
-  }
+   // Only show chatbot for authenticated users
+   if (!user) {
+     return null;
+   }
 
-  console.log('🤖 AI Chatbot component rendered for user:', user.id);
+   console.log('🤖 AI Chatbot component rendered for user:', user.id);
+
+   // Initialize Gemini
+   const genAI = new GoogleGenerativeAI((import.meta as any).env.VITE_GEMINI_API_KEY);
+   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -40,14 +45,24 @@ export function AIChatbot() {
     setInput('');
     setIsLoading(true);
 
-    // simulate response
-    setTimeout(() => {
+    try {
+      const result = await model.generateContent(userMessage.content);
+      const response = await result.response;
+      const text = response.text();
+
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'This is a demo response ✅' },
+        { role: 'assistant', content: text },
       ]);
+    } catch (error) {
+      console.error('Error generating response:', error);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' },
+      ]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
