@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     level INTEGER DEFAULT 1,
     badges TEXT[] DEFAULT '{}',
     streak_days INTEGER DEFAULT 0,
+    last_active_date DATE,
     preparedness_score INTEGER DEFAULT 0,
     avatar_url TEXT,
     phone TEXT,
@@ -194,8 +195,8 @@ CREATE POLICY "Admins can view all safety status" ON public.safety_status
 INSERT INTO public.learning_modules (id, title, description, video_url, duration, xp_reward, category) VALUES
 ('earthquake-safety-basics', 'Earthquake Safety Basics', 'Learn fundamental earthquake safety techniques including Drop, Cover, and Hold On procedures.', 'https://www.youtube.com/embed/BLEPakj1YTY?rel=0&modestbranding=1&controls=1', '15 min', 200, 'earthquake'),
 ('fire-safety-basics', 'Fire Safety Fundamentals', 'Master fire prevention, detection, and evacuation procedures for various scenarios.', 'https://www.youtube.com/embed/Xgc90CoJbDI?rel=0&modestbranding=1&controls=1', '20 min', 150, 'fire'),
-('flood-response-basics', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', 'https://www.youtube.com/embed/1pGj5N_sCr8?rel=0&modestbranding=1&controls=1', '18 min', 180, 'flood'),
-('emergency-communication-basics', 'Emergency Communication', 'Essential communication strategies during crisis situations.', 'https://www.youtube.com/embed/QE4ecWlZJ-o?rel=0&modestbranding=1&controls=1', '12 min', 120, 'communication')
+('flood-response-basics', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', 'https://www.youtube.com/embed/43M5mZuzHF8?rel=0&modestbranding=1&controls=1', '18 min', 180, 'flood'),
+('emergency-communication-basics', 'Emergency Communication', 'Essential communication strategies during crisis situations.', 'https://www.youtube.com/embed/kE3XAwR412I?rel=0&modestbranding=1&controls=1', '12 min', 120, 'communication')
 ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
     description = EXCLUDED.description,

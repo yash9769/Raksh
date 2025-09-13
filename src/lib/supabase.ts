@@ -22,6 +22,7 @@ export interface UserProfile {
   xp: number
   badges: string[]
   streak_days: number
+  last_active_date?: string
   emergency_contacts?: EmergencyContact[]
   created_at: string
   updated_at: string

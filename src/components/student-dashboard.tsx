@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "motion/react";
 import { supabase } from "../lib/supabase";
-import { DebugInfo } from "./debug-info";
 import { DatabaseSetupReminder } from "./database-setup-reminder";
 import { Button } from "./ui/button";
 import {
@@ -18,6 +18,8 @@ import {
   AvatarImage,
 } from "./ui/avatar";
 import { Alert, AlertDescription } from "./ui/alert";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Label } from "./ui/label";
 import {
   Shield,
   BookOpen,
@@ -40,11 +42,15 @@ import {
   PlayCircle,
   ChevronRight,
   Database,
+  CheckCircle,
+  XCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import {
   EmergencyAlert,
   subscribeToAlerts,
+  awardBadgeAndXP,
 } from "../lib/supabase";
 
 interface StudentDashboardProps {
@@ -56,11 +62,9 @@ export function StudentDashboard({
   onNavigate,
   onEmergencyMode,
 }: StudentDashboardProps) {
-  const { profile, signOut, moduleProgress, getPreparednessScore } = useAuth();
+  const { user, profile, signOut, moduleProgress, getPreparednessScore, refreshProfile, updateStreak } = useAuth();
   const [activeAlert, setActiveAlert] =
     useState<EmergencyAlert | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
-  const [streakDays, setStreakDays] = useState(0);
 
   useEffect(() => {
     // Subscribe to real-time emergency alerts
@@ -82,53 +86,6 @@ export function StudentDashboard({
     };
   }, [onEmergencyMode]);
 
-  useEffect(() => {
-    const fetchAndUpdateStreak = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("streak_days, last_active_date")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching streak:", error);
-        return;
-      }
-
-      const today = new Date().toDateString();
-      let updatedStreak = 1;
-
-      if (data?.last_active_date) {
-        const lastDate = new Date(data.last_active_date).toDateString();
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-
-        if (lastDate === today) {
-          updatedStreak = data.streak_days; // already updated today
-        } else if (lastDate === yesterday.toDateString()) {
-          updatedStreak = (data.streak_days || 0) + 1; // continue streak
-        } else {
-          updatedStreak = 1; // reset
-        }
-      }
-
-      setStreakDays(updatedStreak);
-
-      // Save back to DB
-      await supabase
-        .from("user_profiles")
-        .update({
-          streak_days: updatedStreak,
-          last_active_date: new Date().toISOString().split("T")[0],
-        })
-        .eq("id", user.id);
-    };
-
-    fetchAndUpdateStreak();
-  }, []);
 
   // Dynamic next mission based on completed modules
   const getNextMission = useCallback(() => {
@@ -194,17 +151,174 @@ export function StudentDashboard({
     setNextMission(newMission);
   }, [getNextMission]);
 
-  const [dailyChallenge] = useState({
+  const [dailyChallenge, setDailyChallenge] = useState({
     title: "Identify 3 Exit Routes",
     description:
       "Can you find the nearest emergency exits from your current location?",
     xpReward: 50,
     completed: false,
+    showQuiz: false,
+    currentQuestion: 0,
+    selectedAnswer: '',
+    answers: [] as string[],
+    score: 0,
+    showFeedback: false,
+    showRetryMessage: false,
   });
+
+  const dailyChallengeQuestions = [
+    {
+      question: "How many emergency exits should you be able to identify in any building?",
+      options: [
+        "At least 1",
+        "At least 2",
+        "At least 3",
+        "As many as possible"
+      ],
+      correct: 1,
+      explanation: "You should always know at least 2 exit routes from any location. Having multiple options ensures you can escape safely even if one route is blocked."
+    },
+    {
+      question: "What should you look for when identifying emergency exits?",
+      options: [
+        "Green exit signs with white lettering",
+        "Red exit signs with white lettering",
+        "Any door that leads outside",
+        "Windows that can be opened"
+      ],
+      correct: 0,
+      explanation: "Emergency exits are marked with green signs containing white letters spelling 'EXIT'. These are the primary indicators of safe escape routes."
+    },
+    {
+      question: "Why is it important to identify multiple exit routes?",
+      options: [
+        "To impress your friends",
+        "In case one exit is blocked by fire or debris",
+        "To find the shortest path",
+        "For emergency drills only"
+      ],
+      correct: 1,
+      explanation: "During an emergency, your primary exit route might be blocked by fire, smoke, or debris. Having alternative routes ensures you can always find a safe way out."
+    }
+  ];
+
+  const handleStartDailyChallenge = () => {
+    setDailyChallenge(prev => ({ ...prev, showQuiz: true }));
+  };
+
+  const handleDailyChallengeAnswerSelect = (value: string) => {
+    console.log('Selected answer:', value);
+    setDailyChallenge(prev => ({ ...prev, selectedAnswer: value }));
+  };
+
+  const handleDailyChallengeQuestionSubmit = () => {
+    const currentQ = dailyChallengeQuestions[dailyChallenge.currentQuestion];
+    const selectedIndex = parseInt(dailyChallenge.selectedAnswer);
+    const isCorrect = selectedIndex === currentQ.correct;
+    console.log(`Question ${dailyChallenge.currentQuestion + 1}: Selected ${selectedIndex}, Correct ${currentQ.correct}, isCorrect: ${isCorrect}`);
+    const newAnswers = [...dailyChallenge.answers, dailyChallenge.selectedAnswer];
+    const newScore = isCorrect ? dailyChallenge.score + 1 : dailyChallenge.score;
+
+    setDailyChallenge(prev => ({
+      ...prev,
+      answers: newAnswers,
+      score: newScore,
+      showFeedback: true
+    }));
+
+    setTimeout(() => {
+      setDailyChallenge(prev => {
+        const nextQuestion = prev.currentQuestion + 1;
+        if (nextQuestion < dailyChallengeQuestions.length) {
+          return {
+            ...prev,
+            currentQuestion: nextQuestion,
+            selectedAnswer: '',
+            showFeedback: false
+          };
+        } else {
+          // Quiz completed
+          return {
+            ...prev,
+            showFeedback: false
+          };
+        }
+      });
+    }, 2500);
+  };
+
+  const handleCompleteDailyChallenge = async () => {
+    if (!user || dailyChallenge.completed) return;
+
+    let finalScore = dailyChallenge.score;
+
+    // If we're on the last question and have a selected answer, submit it first
+    if (dailyChallenge.currentQuestion + 1 >= dailyChallengeQuestions.length && dailyChallenge.selectedAnswer) {
+      const currentQ = dailyChallengeQuestions[dailyChallenge.currentQuestion];
+      const isCorrect = parseInt(dailyChallenge.selectedAnswer) === currentQ.correct;
+      const newAnswers = [...dailyChallenge.answers, dailyChallenge.selectedAnswer];
+      finalScore = isCorrect ? dailyChallenge.score + 1 : dailyChallenge.score;
+
+      setDailyChallenge(prev => ({
+        ...prev,
+        answers: newAnswers,
+        score: finalScore,
+        showFeedback: true
+      }));
+
+      console.log(`Question ${dailyChallenge.currentQuestion + 1}: Selected ${parseInt(dailyChallenge.selectedAnswer)}, Correct ${currentQ.correct}, isCorrect: ${isCorrect}`);
+    }
+
+    // Check if quiz is passed (at least 80% score)
+    console.log('Daily challenge final score:', finalScore, 'out of', dailyChallengeQuestions.length);
+    const percentage = Math.round((finalScore / dailyChallengeQuestions.length) * 100);
+    console.log('Calculated percentage:', percentage);
+    if (percentage < 80) {
+      // Show retry message and reset quiz after a delay
+      setDailyChallenge(prev => ({ ...prev, showRetryMessage: true }));
+
+      setTimeout(() => {
+        setDailyChallenge(prev => ({
+          ...prev,
+          currentQuestion: 0,
+          selectedAnswer: '',
+          answers: [],
+          score: 0,
+          showFeedback: false,
+          showRetryMessage: false,
+          showQuiz: true
+        }));
+      }, 3000); // Show message for 3 seconds before resetting
+      return;
+    }
+
+    try {
+      // Award XP for completing the daily challenge
+      const result = await awardBadgeAndXP(user.id, dailyChallenge.xpReward);
+
+      if (result.error) {
+        console.error('Failed to award XP for daily challenge:', result.error);
+        return;
+      }
+
+      // Mark challenge as completed
+      setDailyChallenge(prev => ({ ...prev, completed: true, showQuiz: false }));
+
+      // Refresh profile to update XP display and update streak
+      await Promise.all([
+        refreshProfile(),
+        updateStreak()
+      ]);
+
+      console.log(`Daily challenge completed! Awarded ${dailyChallenge.xpReward} XP`);
+    } catch (error) {
+      console.error('Error completing daily challenge:', error);
+    }
+  };
 
   // Dynamic badges based on user profile
   const recentBadges =
-    profile?.badges?.slice(-3).map((badge) => {
+    profile?.badges?.map((badge) => {
       switch (badge) {
         case "fire_safety_expert":
           return {
@@ -349,21 +463,12 @@ export function StudentDashboard({
               </Badge>
               <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-sm">
                 <Flame className="w-4 h-4" />
-                <span className="font-medium">{streakDays} day streak</span>
+                <span className="font-medium">{profile?.streak_days || 0} day streak</span>
               </div>
             </div>
           </div>
         </div>
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-            className="hover:bg-gray-100"
-          >
-            <Database className="w-4 h-4 mr-2" />
-            Debug
-          </Button>
           <Button variant="outline" size="sm" onClick={() => signOut()} className="hover:bg-gray-100">
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
@@ -391,12 +496,6 @@ export function StudentDashboard({
         </Alert>
       )}
 
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="mb-6">
-          <DebugInfo />
-        </div>
-      )}
 
       {/* Database Setup Reminder */}
       {moduleProgress.length === 0 && (profile?.xp || 0) === 0 && (
@@ -536,23 +635,137 @@ export function StudentDashboard({
           <CardTitle className="text-xl text-gray-900 mb-2">
             {dailyChallenge.title}
           </CardTitle>
-          <CardDescription className="text-gray-600">
-            {dailyChallenge.description}
-          </CardDescription>
+          {!dailyChallenge.showQuiz && !dailyChallenge.completed && (
+            <CardDescription className="text-gray-600">
+              {dailyChallenge.description}
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="relative z-10">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-1 text-amber-600">
-              <Zap className="w-4 h-4" />
-              <span className="font-medium">+{dailyChallenge.xpReward} XP</span>
+          {dailyChallenge.completed ? (
+            <div className="text-center py-4">
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <p className="text-green-700 font-semibold">Challenge Completed!</p>
+              <p className="text-sm text-gray-600">Earned +{dailyChallenge.xpReward} XP</p>
             </div>
-            <Button
-              size="sm"
-              className="bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-md"
-            >
-              Complete Challenge
-            </Button>
-          </div>
+          ) : dailyChallenge.showQuiz ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-blue-100 text-blue-700">
+                  <Zap className="w-3 h-3 mr-1" />
+                  Question {dailyChallenge.currentQuestion + 1}
+                </Badge>
+                <Badge variant="outline">
+                  {dailyChallengeQuestions.length - dailyChallenge.currentQuestion} remaining
+                </Badge>
+              </div>
+
+              <CardTitle className="text-lg leading-relaxed mb-4">
+                {dailyChallengeQuestions[dailyChallenge.currentQuestion]?.question}
+              </CardTitle>
+
+              <RadioGroup value={dailyChallenge.selectedAnswer} onValueChange={handleDailyChallengeAnswerSelect}>
+                {dailyChallengeQuestions[dailyChallenge.currentQuestion]?.options.map((option, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 transition-colors border border-gray-200 hover:border-blue-300 cursor-pointer mb-2"
+                  >
+                    <RadioGroupItem value={index.toString()} id={`daily-option-${index}`} />
+                    <Label htmlFor={`daily-option-${index}`} className="flex-1 cursor-pointer text-base">
+                      {option}
+                    </Label>
+                  </motion.div>
+                ))}
+              </RadioGroup>
+
+              {dailyChallenge.showFeedback && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`mt-4 p-4 rounded-xl border-2 ${
+                    parseInt(dailyChallenge.selectedAnswer) === dailyChallengeQuestions[dailyChallenge.currentQuestion].correct
+                      ? 'bg-green-50 border-green-300 text-green-800'
+                      : 'bg-red-50 border-red-300 text-red-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    {parseInt(dailyChallenge.selectedAnswer) === dailyChallengeQuestions[dailyChallenge.currentQuestion].correct ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-600" />
+                    )}
+                    <span className="font-bold">
+                      {parseInt(dailyChallenge.selectedAnswer) === dailyChallengeQuestions[dailyChallenge.currentQuestion].correct ? 'Correct!' : 'Not quite right'}
+                    </span>
+                  </div>
+                  <p className="text-sm">{dailyChallengeQuestions[dailyChallenge.currentQuestion].explanation}</p>
+                </motion.div>
+              )}
+
+              {dailyChallenge.showRetryMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 rounded-xl border-2 bg-orange-50 border-orange-300 text-orange-800"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <span className="font-bold">Quiz Not Passed</span>
+                  </div>
+                  <p className="text-sm">
+                    You scored {Math.round((dailyChallenge.score / dailyChallengeQuestions.length) * 100)}%.
+                    You need at least 80% to complete this challenge. Try again!
+                  </p>
+                </motion.div>
+              )}
+
+              <div className="flex justify-between items-center pt-4">
+                <div className="flex items-center gap-1 text-amber-600">
+                  <Zap className="w-4 h-4" />
+                  <span className="font-medium">+{dailyChallenge.xpReward} XP</span>
+                </div>
+                {dailyChallenge.currentQuestion + 1 >= dailyChallengeQuestions.length ? (
+                  <Button
+                    size="sm"
+                    className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-md"
+                    onClick={handleCompleteDailyChallenge}
+                  >
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Finish Challenge
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-md"
+                    onClick={handleDailyChallengeQuestionSubmit}
+                    disabled={!dailyChallenge.selectedAnswer || dailyChallenge.showFeedback}
+                  >
+                    Next Question
+                    <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1 text-amber-600">
+                <Zap className="w-4 h-4" />
+                <span className="font-medium">+{dailyChallenge.xpReward} XP</span>
+              </div>
+              <Button
+                size="sm"
+                className="bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-md"
+                onClick={handleStartDailyChallenge}
+              >
+                <PlayCircle className="w-4 h-4 mr-2" />
+                Start Challenge
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -607,12 +820,12 @@ export function StudentDashboard({
         </Card>
       </div>
 
-      {/* Enhanced Recent Achievements */}
+      {/* Enhanced Achievements */}
       <Card className="mb-6 bg-white/70 backdrop-blur-sm border border-white/20 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-gray-900">
             <Award className="w-6 h-6 text-amber-500" />
-            Recent Achievements
+            Achievements
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -1,5 +1,16 @@
--- Migration script to fix module IDs that don't match the application code
--- Run this in your Supabase SQL Editor if you've already set up the database with incorrect module IDs
+-- Migration script to fix module IDs and add missing columns
+-- Run this in your Supabase SQL Editor if you've already set up the database
+
+-- Add last_active_date column to user_profiles if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_profiles' AND column_name = 'last_active_date') THEN
+        ALTER TABLE public.user_profiles ADD COLUMN last_active_date DATE;
+        RAISE NOTICE 'Added last_active_date column to user_profiles';
+    ELSE
+        RAISE NOTICE 'last_active_date column already exists';
+    END IF;
+END $$;
 
 -- Update module IDs in learning_modules table
 UPDATE public.learning_modules
@@ -43,8 +54,8 @@ WHERE module_id = 'emergency-communication';
 -- Insert any missing modules with correct IDs
 INSERT INTO public.learning_modules (id, title, description, video_url, duration, xp_reward, category) VALUES
 ('fire-safety-basics', 'Fire Safety Fundamentals', 'Master fire prevention, detection, and evacuation procedures for various scenarios.', 'https://www.youtube.com/embed/Xgc90CoJbDI?rel=0&modestbranding=1&controls=1', '20 min', 150, 'fire'),
-('flood-response-basics', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', 'https://www.youtube.com/embed/1pGj5N_sCr8?rel=0&modestbranding=1&controls=1', '18 min', 180, 'flood'),
-('emergency-communication-basics', 'Emergency Communication', 'Essential communication strategies during crisis situations.', 'https://www.youtube.com/embed/QE4ecWlZJ-o?rel=0&modestbranding=1&controls=1', '12 min', 120, 'communication')
+('flood-response-basics', 'Flood Response Training', 'Navigate flood emergencies safely with proper preparation and response techniques.', 'https://www.youtube.com/embed/43M5mZuzHF8?rel=0&modestbranding=1&controls=1', '18 min', 180, 'flood'),
+('emergency-communication-basics', 'Emergency Communication', 'Essential communication strategies during crisis situations.', 'https://www.youtube.com/embed/kE3XAwR412I?rel=0&modestbranding=1&controls=1', '12 min', 120, 'communication')
 ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
     description = EXCLUDED.description,

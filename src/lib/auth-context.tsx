@@ -19,6 +19,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata: { full_name: string, role: 'student' | 'faculty' | 'admin' }) => Promise<{ error: any }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>
+  updateStreak: () => Promise<void>
   refreshProgress: () => Promise<void>
   refreshProfile: () => Promise<void>
   getPreparednessScore: () => number
@@ -232,16 +233,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return
-    
+
     const { data } = await supabase
       .from('user_profiles')
       .update(updates)
       .eq('id', user.id)
       .select()
       .single()
-    
+
     if (data) {
       setProfile(data)
+    }
+  }
+
+  const updateStreak = async () => {
+    if (!user || !profile) return
+
+    try {
+      const today = new Date().toDateString()
+      const lastActiveDate = profile.last_active_date ? new Date(profile.last_active_date).toDateString() : null
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+
+      let newStreak = 1
+
+      if (lastActiveDate === today) {
+        // Already active today, keep current streak
+        newStreak = profile.streak_days || 0
+      } else if (lastActiveDate === yesterday.toDateString()) {
+        // Active yesterday, increment streak
+        newStreak = (profile.streak_days || 0) + 1
+      } else {
+        // Streak broken or first time, reset to 1
+        newStreak = 1
+      }
+
+      // Update profile with new streak and last active date
+      await updateProfile({
+        streak_days: newStreak,
+        last_active_date: new Date().toISOString().split('T')[0]
+      })
+
+      console.log(`Streak updated: ${newStreak} days`)
+    } catch (error) {
+      console.error('Error updating streak:', error)
     }
   }
 
@@ -254,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     updateProfile,
+    updateStreak,
     refreshProgress,
     refreshProfile,
     getPreparednessScore,

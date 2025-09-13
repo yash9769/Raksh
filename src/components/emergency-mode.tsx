@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { motion, PanInfo } from "motion/react";
-import { 
-  Shield, 
-  AlertTriangle, 
-  Phone, 
-  MapPin, 
+import {
+  Shield,
+  AlertTriangle,
+  Phone,
+  MapPin,
   X,
   CheckCircle,
   Navigation,
@@ -21,7 +21,8 @@ import {
   Plus,
   Edit,
   Save,
-  UserPlus
+  UserPlus,
+  LogOut
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -35,7 +36,7 @@ interface EmergencyModeProps {
 }
 
 export function EmergencyMode({ onExit }: EmergencyModeProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState('main'); // 'main', 'sos-confirm', 'map', 'alert-active'
   const [statusSent, setStatusSent] = useState(false);
   const [activeAlert, setActiveAlert] = useState<EmergencyAlert | null>(null);
@@ -489,14 +490,25 @@ export function EmergencyMode({ onExit }: EmergencyModeProps) {
           <h1 className="text-xl font-bold text-red-100">EMERGENCY MODE</h1>
           <p className="text-red-300 text-sm">Immediate assistance available</p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onExit}
-          className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white transition-all duration-200"
-        >
-          <X className="w-4 h-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => signOut()}
+            className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white transition-all duration-200"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExit}
+            className="border-red-400 text-red-300 hover:bg-red-400 hover:text-white transition-all duration-200"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* SOS Activation Feedback */}

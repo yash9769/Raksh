@@ -8,12 +8,12 @@ import { Label } from "./ui/label";
 import { motion } from "motion/react";
 import { useAuth } from '../lib/auth-context';
 import { updateLearningProgress, awardBadgeAndXP } from '../lib/supabase';
-import { 
-  ArrowLeft, 
-  Play, 
-  CheckCircle, 
-  XCircle, 
-  Trophy, 
+import {
+  ArrowLeft,
+  Play,
+  CheckCircle,
+  XCircle,
+  Trophy,
   Star,
   BookOpen,
   Zap,
@@ -26,7 +26,8 @@ import {
   PlayCircle,
   Rocket,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  LogOut
 } from "lucide-react";
 
 interface LearningModuleProps {
@@ -36,7 +37,7 @@ interface LearningModuleProps {
 }
 
 export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleProps) {
-  const { user, updateProfile, refreshProgress, refreshProfile } = useAuth();
+  const { user, updateProfile, refreshProgress, refreshProfile, updateStreak, signOut } = useAuth();
   const [currentStep, setCurrentStep] = useState('intro'); // 'intro', 'video', 'quiz', 'complete'
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -143,7 +144,7 @@ export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleP
       case 'flood-response-basics':
         return {
           title: "Flood Response Training",
-          videoUrl: "https://www.youtube.com/embed/1pGj5N_sCr8?rel=0&modestbranding=1&controls=1",
+          videoUrl: "https://www.youtube.com/embed/43M5mZuzHF8?rel=0&modestbranding=1&controls=1",
           duration: "18 min",
           xpReward: 180,
           badgeThreshold: 80,
@@ -188,7 +189,7 @@ export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleP
       case 'emergency-communication-basics':
         return {
           title: "Emergency Communication",
-          videoUrl: "https://www.youtube.com/embed/QE4ecWlZJ-o?rel=0&modestbranding=1&controls=1",
+          videoUrl: "https://www.youtube.com/embed/kE3XAwR412I?rel=0&modestbranding=1&controls=1",
           duration: "12 min",
           xpReward: 120,
           badgeThreshold: 80,
@@ -484,9 +485,10 @@ export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleP
         try {
           await Promise.all([
             refreshProgress(),
-            refreshProfile()
+            refreshProfile(),
+            updateStreak()
           ]);
-          console.log('Progress and profile refreshed successfully!');
+          console.log('Progress, profile, and streak refreshed successfully!');
         } catch (refreshError) {
           console.warn('Failed to refresh data:', refreshError);
         }
@@ -509,7 +511,13 @@ export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleP
         moduleId: moduleId,
         score: Math.round((score / module.questions.length) * 100),
         xp: Math.round((Math.round((score / module.questions.length) * 100) / 100) * module.xpReward),
-        badge: score === module.questions.length ? 'quick_learner' : score >= Math.ceil(module.questions.length * 0.8) ? badgeEarned : undefined,
+        badge: score === module.questions.length ? 'quick_learner' : score >= Math.ceil(module.questions.length * 0.8) ? (
+          moduleId === 'earthquake-safety-basics' ? 'earthquake_expert' :
+          moduleId === 'fire-safety-basics' ? 'fire_safety_expert' :
+          moduleId === 'flood-response-basics' ? 'flood_expert' :
+          moduleId === 'emergency-communication-basics' ? 'communication_expert' :
+          'safety_expert'
+        ) : undefined,
         completedAt: new Date().toISOString()
       };
       
@@ -626,10 +634,14 @@ export function LearningModule({ moduleId, onBack, onComplete }: LearningModuleP
         
         <div className="max-w-4xl mx-auto px-4">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center justify-between mb-8">
             <Button variant="outline" size="sm" onClick={onBack}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
             </Button>
           </div>
 

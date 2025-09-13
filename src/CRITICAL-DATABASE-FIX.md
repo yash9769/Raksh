@@ -52,22 +52,25 @@ AND column_name = 'emergency_contacts';
 4. **Verify you see**: `emergency_contacts | jsonb` in the results
 5. **Test adding a contact in your app**
 
-## Fix 2: Module ID Migration
+## Fix 2: Module ID Migration & Streak System
 
-**If you've already set up the database, run the migration script to fix module IDs:**
+**If you've already set up the database, run the migration script to fix module IDs and add streak tracking:**
 
-The database sample data had incorrect module IDs that don't match what the app expects. Run the contents of `migrate-module-ids.sql` in your Supabase SQL Editor.
+The database sample data had incorrect module IDs that don't match what the app expects, and the streak system needs the `last_active_date` column. Run the contents of `migrate-module-ids.sql` in your Supabase SQL Editor.
 
 **Key fixes:**
 - `fire-safety-fundamentals` → `fire-safety-basics`
 - `flood-response-training` → `flood-response-basics`
 - `emergency-communication` → `emergency-communication-basics`
+- Adds `last_active_date` column for proper streak tracking
 
 ## After Running All Fixes:
 - ✅ Emergency contacts will save properly
 - ✅ Module completion will be tracked correctly
 - ✅ Fire Safety completion will now be captured
 - ✅ All modules will display progress properly
+- ✅ Streak counter will update properly when completing activities
+- ✅ Daily activity streaks will be maintained accurately
 - ✅ No more database errors
 
 **These fixes must be applied before testing the features!**

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Send, Bot, User, X } from 'lucide-react';
+import { useAuth } from '../lib/auth-context';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,6 +13,15 @@ interface Message {
 }
 
 export function AIChatbot() {
+  const { user } = useAuth();
+
+  // Only show chatbot for authenticated users
+  if (!user) {
+    return null;
+  }
+
+  console.log('🤖 AI Chatbot component rendered for user:', user.id);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -44,15 +54,49 @@ export function AIChatbot() {
     <>
       {/* Floating button */}
       {!isOpen && (
-        <Button
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full
-                     bg-gradient-to-r from-purple-600 to-blue-600
-                     hover:from-purple-700 hover:to-blue-700
-                     text-white shadow-2xl z-[9999]"
-          onClick={() => setIsOpen(true)}
+        <div
+          className="fixed bottom-6 right-6 z-[10000] pointer-events-auto"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 10000,
+            pointerEvents: 'auto'
+          }}
         >
-          <Bot className="w-7 h-7" />
-        </Button>
+          <Button
+            className="w-24 h-24 rounded-full
+                       bg-gradient-to-r from-red-600 to-purple-600
+                       hover:from-red-700 hover:to-purple-700
+                       text-white shadow-2xl animate-bounce
+                       border-4 border-yellow-400"
+            onClick={() => setIsOpen(true)}
+            style={{
+              width: '96px',
+              height: '96px',
+              background: 'linear-gradient(to right, #dc2626, #9333ea)',
+              border: '4px solid #fbbf24'
+            }}
+          >
+            <Bot className="w-12 h-12" />
+            <span className="absolute -top-3 -right-3 w-8 h-8 bg-yellow-400 rounded-full animate-ping border-2 border-red-600"></span>
+          </Button>
+          <div
+            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2
+                          bg-red-600 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap font-bold border-2 border-yellow-400"
+            style={{
+              backgroundColor: '#dc2626',
+              color: 'white',
+              fontSize: '14px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '2px solid #fbbf24',
+              fontWeight: 'bold'
+            }}
+          >
+            🚨 CLICK ME! AI Assistant
+          </div>
+        </div>
       )}
 
       {/* Floating chat window */}
